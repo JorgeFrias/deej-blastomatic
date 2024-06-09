@@ -18,7 +18,7 @@ int ledIntensity = 0;         // 0-255
 int ledColor = 0;             // HSV color (0-360)
 int ledSettingsCounter = 0;           // Counter for the number of times the slider goes to max, min
 int ledSettingsCounterMax = 3;        // Number of times the slider needs to go to max, min to trigger settings mode
-int ledSettingsCounterThreshold = 3;  // Number of seconds to wait for the next max, min
+int ledSettingsCounterThreshold = 3000;     // Number of seconds to wait for the next max, min
 int ledSettingsCounterLastTime = 0;   // Last time the slider was at max, min
 bool ledSettingsLastIsMax = false;    // Last toggle of the slider
 bool isSettingsMode = 0;              // Flag to check if we are in settings mode
@@ -95,18 +95,18 @@ void checkLedSettingsTrigger() {
   bool isAtMax = abs(analogSliderValues[0] - 0) <= TOLERANCE;
   bool isAtMin = abs(1023 - analogSliderValues[0]) <= TOLERANCE;
 
-  if (isAtMax || isAtMin) {
-    // Check if the last state was different and the time is less than the threshold
-    if (ledSettingsLastIsMax != isAtMax && millis() - ledSettingsCounterLastTime < ledSettingsCounterThreshold) {
-      ledSettingsCounter++;
-      ledSettingsLastIsMax = isAtMax;
-      ledSettingsCounterLastTime = millis();
-      Serial.println("Settings: Toggling counter");
-    }
+  // Check 
+  // - if the slider is at max, min
+  // - if the last state was different
+  if ((isAtMax || isAtMin) && ledSettingsLastIsMax != isAtMax) {
+    ledSettingsCounter++;
+    ledSettingsLastIsMax = isAtMax;
+    ledSettingsCounterLastTime = millis();
+    Serial.println("Settings: Toggling counter");
   }
 
   // Reset the counter if the time is greater than the threshold
-  if (millis() - ledSettingsCounterLastTime > ledSettingsCounterThreshold) {
+  if (ledSettingsCounter > 0 && millis() - ledSettingsCounterLastTime > ledSettingsCounterThreshold) {
     ledSettingsCounter = 0;
     ledSettingsLastIsMax = false;
     ledSettingsCounterLastTime = 0;
@@ -139,7 +139,9 @@ void updateSettingsLoop() {
       ledSettingsEdditingLastValue[0] = analogSliderValues[0];
       ledSettingsEdditingLastValue[1] = analogSliderValues[1];
       ledSettingsEdditingLastTime = millis();
-    } else {
+    } 
+
+    if (!edited && millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
       Serial.println("Settings: Auto-exiting settings mode");
       // Exit settings mode if no slider changes in 5 seconds
       if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
