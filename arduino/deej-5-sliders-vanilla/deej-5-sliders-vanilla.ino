@@ -128,20 +128,19 @@ void updateSettingsLoop() {
   
   isSettingsMode = true;
   while (isSettingsMode) {
+    const int sliderIntexLight = NUM_SLIDERS - 1;
+    // const int sliderPositionColor = NUM_SLIDERS - 2;   // Just light for now
+    
     // Check if the settings were edited
-    ledSettingsEdditingLastTime = millis();
+    bool editedSliiderLight = abs(analogSliderValues[sliderIntexLight] - ledSettingsEdditingLastValue[0]) > TOLERANCE;
     
-    // Check if the absolute difference between the current and last values is greater than the tolerance
-    bool edited = abs(analogSliderValues[0] - ledSettingsEdditingLastValue[0]) > TOLERANCE || abs(analogSliderValues[1] - ledSettingsEdditingLastValue[1]) > TOLERANCE;    
-    
-    if (edited) {
+    if (editedSliiderLight) {
       Serial.println("Settings: Settings edited");
-      ledSettingsEdditingLastValue[0] = analogSliderValues[0];
-      ledSettingsEdditingLastValue[1] = analogSliderValues[1];
+      ledSettingsEdditingLastValue[0] = analogSliderValues[sliderIntexLight];
+      // ledSettingsEdditingLastValue[1] = analogSliderValues[1];
       ledSettingsEdditingLastTime = millis();
-    } 
-
-    if (!edited && millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
+      
+    } else if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
       Serial.println("Settings: Auto-exiting settings mode");
       // Exit settings mode if no slider changes in 5 seconds
       if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
