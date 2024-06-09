@@ -20,11 +20,13 @@ int ledSettingsCounter = 0;           // Counter for the number of times the sli
 int ledSettingsCounterMax = 3;        // Number of times the slider needs to go to max, min to trigger settings mode
 int ledSettingsCounterThreshold = 3;  // Number of seconds to wait for the next max, min
 int ledSettingsCounterLastTime = 0;   // Last time the slider was at max, min
+bool ledSettingsLastIsMax = false;    // Last toggle of the slider
 bool isSettingsMode = 0;              // Flag to check if we are in settings mode
 
 int ledSettingsEdditingLastTime = 0;        // Last time the settings were edited
 int ledSettingsEdditingThreshold = 5000;    // Number of milliseconds to wait before exiting settings mode
 int ledSettingsEdditingLastValue[2];        // Last values of the sliders [intensity, color]
+const int TOLERANCE = 5;                    // Settings measures tolerance
 
 
 void setup() { 
@@ -48,8 +50,9 @@ void setup() {
 
 void loop() {
   updateSliderValues();
-  sendSliderValues();           // Actually send data (all the time)
+  // sendSliderValues();           // Actually send data (all the time)
   // printSliderValues();       // For debug
+  checkLedSettingsTrigger();        // Check if we need to enter settings mode
   delay(10);
 }
 
@@ -89,26 +92,32 @@ void printSliderValues() {
 // LED Settings
 void checkLedSettingsTrigger() {
   // Check if the last slider is at max, min
-  if (analogSliderValues[NUM_SLIDERS - 1] == 0 || analogSliderValues[NUM_SLIDERS - 1] == 1023) {
-    ledSettingsCounterLastTime = millis();
-    Serial.println("Settings: Slider at max, min");
+  bool isAtMax = abs(analogSliderValues[0] - 0) <= TOLERANCE;
+  bool isAtMin = abs(1023 - analogSliderValues[0]) <= TOLERANCE;
 
-    if (millis() - ledSettingsCounterLastTime > ledSettingsCounterThreshold) {
+  if (isAtMax || isAtMin) {
+    // Check if the last state was different and the time is less than the threshold
+    if (ledSettingsLastIsMax != isAtMax && millis() - ledSettingsCounterLastTime < ledSettingsCounterThreshold) {
       ledSettingsCounter++;
+      ledSettingsLastIsMax = isAtMax;
       ledSettingsCounterLastTime = millis();
-      Serial.println("Settings: Incrementing counter");
+      Serial.println("Settings: Toggling counter");
     }
-  } else {
+  }
+
+  // Reset the counter if the time is greater than the threshold
+  if (millis() - ledSettingsCounterLastTime > ledSettingsCounterThreshold) {
     ledSettingsCounter = 0;
+    ledSettingsLastIsMax = false;
     ledSettingsCounterLastTime = 0;
     Serial.println("Settings: Resetting counter");
   }
 
+  // Check if the counter is greater than the max, then trigger settings mode
   if (ledSettingsCounter >= ledSettingsCounterMax) {
     // Trigger LED settings mode
     ledSettingsCounter = 0;
     ledSettingsCounterLastTime = 0;
-
     // Enter settings mode
     updateSettingsLoop();
   }
@@ -121,8 +130,9 @@ void updateSettingsLoop() {
   while (isSettingsMode) {
     // Check if the settings were edited
     ledSettingsEdditingLastTime = millis();
-    // TODO: Add tolerances as the sliders are not always 100% accurate
-    bool edited = analogSliderValues[0] != ledSettingsEdditingLastValue[0] || analogSliderValues[1] != ledSettingsEdditingLastValue[1];
+    
+    // Check if the absolute difference between the current and last values is greater than the tolerance
+    bool edited = abs(analogSliderValues[0] - ledSettingsEdditingLastValue[0]) > TOLERANCE || abs(analogSliderValues[1] - ledSettingsEdditingLastValue[1]) > TOLERANCE;    
     
     if (edited) {
       Serial.println("Settings: Settings edited");
