@@ -26,7 +26,7 @@ bool isSettingsMode = 0;              // Flag to check if we are in settings mod
 int ledSettingsEdditingLastTime = 0;        // Last time the settings were edited
 int ledSettingsEdditingThreshold = 5000;    // Number of milliseconds to wait before exiting settings mode
 int ledSettingsEdditingLastValue[2];        // Last values of the sliders [intensity, color]
-const int TOLERANCE = 5;                    // Settings measures tolerance
+const int TOLERANCE = 10;                   // Settings measures tolerance
 
 
 void setup() { 
@@ -50,9 +50,9 @@ void setup() {
 
 void loop() {
   updateSliderValues();
-  // sendSliderValues();           // Actually send data (all the time)
+  checkLedSettingsTrigger();    // Check if we need to enter settings mode
+  sendSliderValues();           // Actually send data (all the time)
   // printSliderValues();       // For debug
-  checkLedSettingsTrigger();        // Check if we need to enter settings mode
   delay(10);
 }
 
@@ -102,7 +102,7 @@ void checkLedSettingsTrigger() {
     ledSettingsCounter++;
     ledSettingsLastIsMax = isAtMax;
     ledSettingsCounterLastTime = millis();
-    Serial.println("Settings: Toggling counter");
+    // Serial.println("Settings: Toggling counter");
   }
 
   // Reset the counter if the time is greater than the threshold
@@ -110,7 +110,7 @@ void checkLedSettingsTrigger() {
     ledSettingsCounter = 0;
     ledSettingsLastIsMax = false;
     ledSettingsCounterLastTime = 0;
-    Serial.println("Settings: Resetting counter");
+    // Serial.println("Settings: Resetting counter");
   }
 
   // Check if the counter is greater than the max, then trigger settings mode
@@ -125,8 +125,10 @@ void checkLedSettingsTrigger() {
 
 void updateSettingsLoop() {
   Serial.println("Settings: Entering settings mode");
-  
   isSettingsMode = true;
+
+  ledSettingsEdditingLastTime = millis();           // Set the last time the settings were edited, to avoid auto-exiting right away
+
   while (isSettingsMode) {
     const int sliderIntexLight = NUM_SLIDERS - 1;
     
@@ -135,12 +137,12 @@ void updateSettingsLoop() {
     bool editedSliiderLight = abs(analogSliderValues[sliderIntexLight] - ledSettingsEdditingLastValue[0]) > TOLERANCE;
     
     if (editedSliiderLight) {
-      Serial.println("Settings: Settings edited");
+      // Serial.println("Settings: Settings edited");
       ledSettingsEdditingLastValue[0] = analogSliderValues[sliderIntexLight];
       ledSettingsEdditingLastTime = millis();
       
     } else if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
-      Serial.println("Settings: Auto-exiting settings mode");
+      // Serial.println("Settings: Auto-exiting settings mode");
       isSettingsMode = false;
       return;
     }
@@ -148,7 +150,7 @@ void updateSettingsLoop() {
     // Set LED intensity
     ledIntensity = map(analogSliderValues[sliderIntexLight], 0, 1023, 0, 255);
 
-    Serial.println("Settings: LED intensity: " + String(ledIntensity));
+    // Serial.println("Settings: LED intensity: " + String(ledIntensity));
 
     // Set LED color
     analogWrite(LEDR, ledIntensity);
