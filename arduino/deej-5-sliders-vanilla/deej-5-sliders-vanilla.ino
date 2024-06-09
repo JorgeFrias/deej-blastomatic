@@ -7,6 +7,26 @@ const int analogInputs[NUM_SLIDERS] = {0, 1, 2, 3, 4};
 
 int analogSliderValues[NUM_SLIDERS];
 
+// Settings mode
+// Uses the last slider to control the LED colors
+// LED settings mode is triggered when the slider goes to max, min 3 times in a row (3 seconds)
+// - LED intensity is controlled by the fiirst slider
+// - LED color is controlled by the second slider
+
+// Led settings variables
+int ledIntensity = 0;         // 0-255
+int ledColor = 0;             // HSV color (0-360)
+int ledSettingsCounter = 0;           // Counter for the number of times the slider goes to max, min
+int ledSettingsCounterMax = 3;        // Number of times the slider needs to go to max, min to trigger settings mode
+int ledSettingsCounterThreshold = 3;  // Number of seconds to wait for the next max, min
+int ledSettingsCounterLastTime = 0;   // Last time the slider was at max, min
+bool isSettingsMode = 0;              // Flag to check if we are in settings mode
+
+int ledSettingsEdditingLastTime = 0;        // Last time the settings were edited
+int ledSettingsEdditingThreshold = 5000;    // Number of milliseconds to wait before exiting settings mode
+int ledSettingsEdditingLastValue[2];        // Last values of the sliders [intensity, color]
+
+
 void setup() { 
   analogReadResolution(10);       // Set ADC resolution to 10 bits - 0-1023
   analogSetAttenuation(ADC_11db); // Set ADC input attenuation to 0dB
@@ -63,5 +83,72 @@ void printSliderValues() {
     } else {
       Serial.write("\n");
     }
+  }
+}
+
+// LED Settings
+void checkLedSettingsTrigger() {
+  // Check if the last slider is at max, min
+  if (analogSliderValues[NUM_SLIDERS - 1] == 0 || analogSliderValues[NUM_SLIDERS - 1] == 1023) {
+    ledSettingsCounterLastTime = millis();
+    Serial.println("Settings: Slider at max, min");
+
+    if (millis() - ledSettingsCounterLastTime > ledSettingsCounterThreshold) {
+      ledSettingsCounter++;
+      ledSettingsCounterLastTime = millis();
+      Serial.println("Settings: Incrementing counter");
+    }
+  } else {
+    ledSettingsCounter = 0;
+    ledSettingsCounterLastTime = 0;
+    Serial.println("Settings: Resetting counter");
+  }
+
+  if (ledSettingsCounter >= ledSettingsCounterMax) {
+    // Trigger LED settings mode
+    ledSettingsCounter = 0;
+    ledSettingsCounterLastTime = 0;
+
+    // Enter settings mode
+    updateSettingsLoop();
+  }
+}
+
+void updateSettingsLoop() {
+  Serial.println("Settings: Entering settings mode");
+  
+  isSettingsMode = true;
+  while (isSettingsMode) {
+    // Check if the settings were edited
+    ledSettingsEdditingLastTime = millis();
+    // TODO: Add tolerances as the sliders are not always 100% accurate
+    bool edited = analogSliderValues[0] != ledSettingsEdditingLastValue[0] || analogSliderValues[1] != ledSettingsEdditingLastValue[1];
+    
+    if (edited) {
+      Serial.println("Settings: Settings edited");
+      ledSettingsEdditingLastValue[0] = analogSliderValues[0];
+      ledSettingsEdditingLastValue[1] = analogSliderValues[1];
+      ledSettingsEdditingLastTime = millis();
+    } else {
+      Serial.println("Settings: Auto-exiting settings mode");
+      // Exit settings mode if no slider changes in 5 seconds
+      if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
+        isSettingsMode = false;
+        return;
+      }
+    }
+
+    // Set LED intensity
+    ledIntensity = map(analogSliderValues[0], 0, 1023, 0, 255);
+
+    // Set LED color
+    ledColor = map(analogSliderValues[1], 0, 1023, 0, 360);
+
+    // Set LED color
+    analogWrite(LEDR, ledIntensity);
+    analogWrite(LEDG, ledIntensity);
+    analogWrite(LEDB, ledIntensity);
+
+    delay(10);
   }
 }
