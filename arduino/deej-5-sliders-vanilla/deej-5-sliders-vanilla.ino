@@ -46,11 +46,6 @@ void setup() {
   }
 
   Serial.begin(9600);
-  
-  // Test
-  lightEnteringSettingsMode();
-  delay(1000);
-  lightExitingSettingsMode();
 }
 
 void loop() {
@@ -189,7 +184,7 @@ void lightPulsating(int intensity, int times, int delayTimeIn, int delayTimeOut)
   }
 
   // Fade to configured intensity
-  for (int i = 0; i < intensity; i++)
+  for (int i = 0; i < ledIntensity; i++)
   {
     analogWrite(LEDR, i);
     analogWrite(LEDG, i);
