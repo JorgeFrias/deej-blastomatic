@@ -46,6 +46,11 @@ void setup() {
   }
 
   Serial.begin(9600);
+  
+  // Test
+  lightEnteringSettingsMode();
+  delay(1000);
+  lightExitingSettingsMode();
 }
 
 void loop() {
@@ -125,6 +130,8 @@ void checkLedSettingsTrigger() {
 
 void updateSettingsLoop() {
   Serial.println("Settings: Entering settings mode");
+  lightEnteringSettingsMode();
+
   isSettingsMode = true;
 
   ledSettingsEdditingLastTime = millis();           // Set the last time the settings were edited, to avoid auto-exiting right away
@@ -144,6 +151,7 @@ void updateSettingsLoop() {
     } else if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
       // Serial.println("Settings: Auto-exiting settings mode");
       isSettingsMode = false;
+      lightExitingSettingsMode();
       return;
     }
 
@@ -159,4 +167,43 @@ void updateSettingsLoop() {
 
     delay(10);
   }
+}
+
+// Effects
+void lightPulsating(int intensity, int times, int delayTimeIn, int delayTimeOut) {
+  // Pulsate
+  for (int i = 0; i < times; i++) {
+    for (int i = 0; i < intensity; i++) {
+      analogWrite(LEDR, i);
+      analogWrite(LEDG, i);
+      analogWrite(LEDB, i);
+      delay(delayTimeIn);
+    }
+
+    for (int i = intensity; i >= 0; i--) {
+      analogWrite(LEDR, i);
+      analogWrite(LEDG, i);
+      analogWrite(LEDB, i);
+      delay(delayTimeOut);
+    }
+  }
+
+  // Fade to configured intensity
+  for (int i = 0; i < intensity; i++)
+  {
+    analogWrite(LEDR, i);
+    analogWrite(LEDG, i);
+    analogWrite(LEDB, i);
+    delay(5);
+  }
+}
+
+void lightEnteringSettingsMode() {
+  // Pulse the LEDs fading in and out
+  lightPulsating(150, 3, 2, 1);
+}
+
+void lightExitingSettingsMode() {
+  // Pulse the LEDs fading in and out
+  lightPulsating(150, 3, 1, 1);
 }
