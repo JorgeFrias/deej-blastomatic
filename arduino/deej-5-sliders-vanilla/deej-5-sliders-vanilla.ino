@@ -1,3 +1,8 @@
+#include <ESP_Color.h>
+
+ESP_Color::Color color(0.0f, 0.0f, 0.5f);
+ESP_Color::HSLf hslColor = color.ToHsl();
+
 #define LEDR 8
 #define LEDG 9
 #define LEDB 7
@@ -14,14 +19,14 @@ int analogSliderValues[NUM_SLIDERS];
 // - LED color is controlled by the second slider
 
 // Led settings variables
-int ledIntensity = 0;         // 0-255
-int ledColor = 0;             // HSV color (0-360)
-int ledSettingsCounter = 0;           // Counter for the number of times the slider goes to max, min
-int ledSettingsCounterMax = 3;        // Number of times the slider needs to go to max, min to trigger settings mode
+// int ledIntensity = 0;                       // 0-255
+// int ledColor = 0;                           // HSV color (0-360)
+int ledSettingsCounter = 0;                 // Counter for the number of times the slider goes to max, min
+int ledSettingsCounterMax = 3;              // Number of times the slider needs to go to max, min to trigger settings mode
 int ledSettingsCounterThreshold = 3000;     // Number of seconds to wait for the next max, min
-int ledSettingsCounterLastTime = 0;   // Last time the slider was at max, min
-bool ledSettingsLastIsMax = false;    // Last toggle of the slider
-bool isSettingsMode = 0;              // Flag to check if we are in settings mode
+int ledSettingsCounterLastTime = 0;         // Last time the slider was at max, min
+bool ledSettingsLastIsMax = false;          // Last toggle of the slider
+bool isSettingsMode = 0;                    // Flag to check if we are in settings mode
 
 int ledSettingsEdditingLastTime = 0;        // Last time the settings were edited
 int ledSettingsEdditingThreshold = 5000;    // Number of milliseconds to wait before exiting settings mode
@@ -151,17 +156,24 @@ void updateSettingsLoop() {
     }
 
     // Set LED intensity
-    ledIntensity = map(analogSliderValues[sliderIntexLight], 0, 1023, 0, 255);
-
+    hslColor.L = map(analogSliderValues[sliderIntexLight], 0, 1023, 0, 1000) / 1000.0f;
     // Serial.println("Settings: LED intensity: " + String(ledIntensity));
 
     // Set LED color
-    analogWrite(LEDR, ledIntensity);
-    analogWrite(LEDG, ledIntensity);
-    analogWrite(LEDB, ledIntensity);
+    setLeds();
 
     delay(10);
   }
+}
+
+/** Set the LED color to the current HSL color */
+void setLeds() {
+  color = ESP_Color::Color::FromHsl(hslColor);
+  Serial.println("HSL: " + String(hslColor.H) + " " + String(hslColor.S) + " " + String(hslColor.L));
+  Serial.println("Color: " + String(color.R) + " " + String(color.G) + " " + String(color.B));
+  analogWrite(LEDR, (int) (color.R * 255));
+  analogWrite(LEDG, (int) (color.G * 255));
+  analogWrite(LEDB, (int) (color.B * 255));
 }
 
 // Effects
@@ -184,7 +196,7 @@ void lightPulsating(int intensity, int times, int delayTimeIn, int delayTimeOut)
   }
 
   // Fade to configured intensity
-  for (int i = 0; i < ledIntensity; i++)
+  for (int i = 0; i < hslColor.L; i++)
   {
     analogWrite(LEDR, i);
     analogWrite(LEDG, i);
