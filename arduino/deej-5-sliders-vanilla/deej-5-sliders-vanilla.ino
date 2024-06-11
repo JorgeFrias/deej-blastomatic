@@ -138,14 +138,17 @@ void updateSettingsLoop() {
 
   while (isSettingsMode) {
     const int sliderIntexLight = NUM_SLIDERS - 1;
+    const int sliderIntexColor = NUM_SLIDERS - 2;
     
     // Check if the settings were edited
     updateSliderValues();
     bool editedSliiderLight = abs(analogSliderValues[sliderIntexLight] - ledSettingsEdditingLastValue[0]) > TOLERANCE;
+    bool editedSliiderColor = abs(analogSliderValues[sliderIntexColor] - ledSettingsEdditingLastValue[1]) > TOLERANCE;
     
-    if (editedSliiderLight) {
+    if (editedSliiderLight || editedSliiderColor) {
       // Serial.println("Settings: Settings edited");
       ledSettingsEdditingLastValue[0] = analogSliderValues[sliderIntexLight];
+      ledSettingsEdditingLastValue[1] = analogSliderValues[sliderIntexColor];
       ledSettingsEdditingLastTime = millis();
       
     } else if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
@@ -157,23 +160,37 @@ void updateSettingsLoop() {
 
     // Set LED intensity
     hslColor.L = map(analogSliderValues[sliderIntexLight], 0, 1023, 0, 1000) / 1000.0f;
-    // Serial.println("Settings: LED intensity: " + String(ledIntensity));
+    hslColor.S = 1.0f;
+    hslColor.H = map(analogSliderValues[sliderIntexColor], 0, 1023, 0, 1000) / 1000.0f;
 
     // Set LED color
-    setLeds();
+    setLedsToCurrent();
 
     delay(10);
   }
 }
 
 /** Set the LED color to the current HSL color */
-void setLeds() {
+void setLedsToCurrent() {
   color = ESP_Color::Color::FromHsl(hslColor);
-  Serial.println("HSL: " + String(hslColor.H) + " " + String(hslColor.S) + " " + String(hslColor.L));
-  Serial.println("Color: " + String(color.R) + " " + String(color.G) + " " + String(color.B));
+  setLedsToColor(color);
+}
+
+void setLedsToColor(ESP_Color::Color color) {
   analogWrite(LEDR, (int) (color.R * 255));
   analogWrite(LEDG, (int) (color.G * 255));
   analogWrite(LEDB, (int) (color.B * 255));
+}
+
+void setFadeLedsToColor(ESP_Color::Color color, int delayTime) {
+  ESP_Color::Color currentColor = ESP_Color::Color::FromHsl(hslColor);
+  ESP_Color::Color diffColor = color - currentColor;
+
+  for (int i = 0; i < 100; i++) {
+    ESP_Color::Color newColor = currentColor + (diffColor * (i / 100.0f));
+    setLedsToColor(newColor);
+    delay(delayTime);
+  }
 }
 
 // Effects
@@ -195,14 +212,8 @@ void lightPulsating(int intensity, int times, int delayTimeIn, int delayTimeOut)
     }
   }
 
-  // Fade to configured intensity
-  for (int i = 0; i < hslColor.L; i++)
-  {
-    analogWrite(LEDR, i);
-    analogWrite(LEDG, i);
-    analogWrite(LEDB, i);
-    delay(5);
-  }
+  // Fade to configured color
+  setFadeLedsToColor(color, 10);
 }
 
 void lightEnteringSettingsMode() {
