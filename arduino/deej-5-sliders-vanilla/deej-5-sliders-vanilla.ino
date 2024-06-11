@@ -1,7 +1,7 @@
 #include <ESP_Color.h>
 
 ESP_Color::Color color(0.0f, 0.0f, 0.5f);
-ESP_Color::HSLf hslColor = color.ToHsl();
+ESP_Color::HSVf hsvColor = color.ToHsv();
 
 #define LEDR 8
 #define LEDG 9
@@ -30,7 +30,7 @@ bool isSettingsMode = 0;                    // Flag to check if we are in settin
 
 int ledSettingsEdditingLastTime = 0;        // Last time the settings were edited
 int ledSettingsEdditingThreshold = 5000;    // Number of milliseconds to wait before exiting settings mode
-int ledSettingsEdditingLastValue[2];        // Last values of the sliders [intensity, color]
+int ledSettingsEdditingLastValue[3];        // Last values of the sliders [value, color, saturation]
 const int TOLERANCE = 10;                   // Settings measures tolerance
 
 
@@ -137,18 +137,21 @@ void updateSettingsLoop() {
   ledSettingsEdditingLastTime = millis();           // Set the last time the settings were edited, to avoid auto-exiting right away
 
   while (isSettingsMode) {
-    const int sliderIntexLight = NUM_SLIDERS - 1;
-    const int sliderIntexColor = NUM_SLIDERS - 2;
+    const int sliderIntexColor      = NUM_SLIDERS - 1;
+    const int sliderIntexSaturation = NUM_SLIDERS - 2;
+    const int sliderIntexValue      = NUM_SLIDERS - 3;
     
     // Check if the settings were edited
     updateSliderValues();
-    bool editedSliiderLight = abs(analogSliderValues[sliderIntexLight] - ledSettingsEdditingLastValue[0]) > TOLERANCE;
-    bool editedSliiderColor = abs(analogSliderValues[sliderIntexColor] - ledSettingsEdditingLastValue[1]) > TOLERANCE;
+    bool editedSliiderColor      = abs(analogSliderValues[sliderIntexColor]      - ledSettingsEdditingLastValue[0]) > TOLERANCE;
+    bool editedSliiderSaturation = abs(analogSliderValues[sliderIntexSaturation] - ledSettingsEdditingLastValue[1]) > TOLERANCE;
+    bool editedSliiderLight      = abs(analogSliderValues[sliderIntexValue]      - ledSettingsEdditingLastValue[2]) > TOLERANCE;
     
-    if (editedSliiderLight || editedSliiderColor) {
+    if (editedSliiderLight || editedSliiderColor || editedSliiderSaturation) {
       // Serial.println("Settings: Settings edited");
-      ledSettingsEdditingLastValue[0] = analogSliderValues[sliderIntexLight];
-      ledSettingsEdditingLastValue[1] = analogSliderValues[sliderIntexColor];
+      ledSettingsEdditingLastValue[0] = analogSliderValues[sliderIntexColor];
+      ledSettingsEdditingLastValue[1] = analogSliderValues[sliderIntexSaturation];
+      ledSettingsEdditingLastValue[2] = analogSliderValues[sliderIntexValue];
       ledSettingsEdditingLastTime = millis();
       
     } else if (millis() - ledSettingsEdditingLastTime > ledSettingsEdditingThreshold) {
@@ -158,10 +161,10 @@ void updateSettingsLoop() {
       return;
     }
 
-    // Set LED intensity
-    hslColor.L = map(analogSliderValues[sliderIntexLight], 0, 1023, 0, 1000) / 1000.0f;
-    hslColor.S = 1.0f;
-    hslColor.H = map(analogSliderValues[sliderIntexColor], 0, 1023, 0, 1000) / 1000.0f;
+    // Set LED color
+    hsvColor.H = map(analogSliderValues[sliderIntexColor], 0, 1023, 0, 1000) / 1000.0f;
+    hsvColor.S = map(analogSliderValues[sliderIntexSaturation], 0, 1023, 0, 1000) / 1000.0f;
+    hsvColor.V = map(analogSliderValues[sliderIntexValue], 0, 1023, 0, 1000) / 1000.0f;
 
     // Set LED color
     setLedsToCurrent();
@@ -172,7 +175,7 @@ void updateSettingsLoop() {
 
 /** Set the LED color to the current HSL color */
 void setLedsToCurrent() {
-  color = ESP_Color::Color::FromHsl(hslColor);
+  color = ESP_Color::Color::FromHsv(hsvColor);
   setLedsToColor(color);
 }
 
@@ -183,7 +186,7 @@ void setLedsToColor(ESP_Color::Color color) {
 }
 
 void setFadeLedsToColor(ESP_Color::Color color, int delayTime) {
-  ESP_Color::Color currentColor = ESP_Color::Color::FromHsl(hslColor);
+  ESP_Color::Color currentColor = ESP_Color::Color::FromHsv(hsvColor);
   ESP_Color::Color diffColor = color - currentColor;
 
   for (int i = 0; i < 100; i++) {
