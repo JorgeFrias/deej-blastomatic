@@ -1,4 +1,6 @@
 #include <ESP_Color.h>
+// #include <Arduino.h>
+#include "ArduinoNvs.h"
 
 ESP_Color::Color color(0.0f, 0.0f, 0.5f);
 ESP_Color::HSVf hsvColor = color.ToHsv();
@@ -42,7 +44,7 @@ void setup() {
   pinMode(LEDG, OUTPUT);
   pinMode(LEDB, OUTPUT);
 
-  digitalWrite(LEDR, LOW);      // Turn off all LEDs
+  digitalWrite(LEDR, LOW);        // Turn off all LEDs
   digitalWrite(LEDG, LOW);
   digitalWrite(LEDB, LOW);
 
@@ -50,14 +52,17 @@ void setup() {
     pinMode(analogInputs[i], INPUT);
   }
 
+  NVS.begin();                    // Initialize NVS - Non-volatile storage
+  setLedColorFromSettings();      // Set the LED color from the saved settings in flash
+
   Serial.begin(9600);
 }
 
 void loop() {
   updateSliderValues();
-  checkLedSettingsTrigger();    // Check if we need to enter settings mode
-  sendSliderValues();           // Actually send data (all the time)
-  // printSliderValues();       // For debug
+  checkLedSettingsTrigger();      // Check if we need to enter settings mode
+  sendSliderValues();             // Actually send data (all the time)
+  // printSliderValues();         // For debug
   delay(10);
 }
 
@@ -158,14 +163,13 @@ void updateSettingsLoop() {
       // Serial.println("Settings: Auto-exiting settings mode");
       isSettingsMode = false;
       lightExitingSettingsMode();
+      // Save the settings
+      saveCurrentValuesToFlash(analogSliderValues[sliderIntexColor], analogSliderValues[sliderIntexSaturation], analogSliderValues[sliderIntexValue]);
       return;
     }
 
-    // Set LED color
-    hsvColor.H = map(analogSliderValues[sliderIntexColor], 0, 1023, 0, 1000) / 1000.0f;
-    hsvColor.S = map(analogSliderValues[sliderIntexSaturation], 0, 1023, 0, 1000) / 1000.0f;
-    hsvColor.V = map(analogSliderValues[sliderIntexValue], 0, 1023, 0, 1000) / 1000.0f;
-
+    // Update the color given the sliders values
+    updateHsvColorFromSliderValues(analogSliderValues[sliderIntexColor], analogSliderValues[sliderIntexSaturation], analogSliderValues[sliderIntexValue]);
     // Set LED color
     setLedsToCurrent();
 
@@ -173,7 +177,31 @@ void updateSettingsLoop() {
   }
 }
 
-/** Set the LED color to the current HSL color */
+/** Update the current color from the slider values. */
+void updateHsvColorFromSliderValues(int sliderValueColor, int sliderValueSaturation, int sliderValueValue) {
+  hsvColor.H = map(sliderValueColor, 0, 1023, 0, 1000) / 1000.0f;
+  hsvColor.S = map(sliderValueSaturation, 0, 1023, 0, 1000) / 1000.0f;
+  hsvColor.V = map(sliderValueValue, 0, 1023, 0, 1000) / 1000.0f;
+}
+
+/** Save the current color settings to the flash memory. */
+void saveCurrentValuesToFlash(int sliderValueColor, int sliderValueSaturation, int sliderValueValue) {
+  NVS.setInt("color", static_cast<int32_t>(sliderValueColor));
+  NVS.setInt("saturation", static_cast<int32_t>(sliderValueSaturation));
+  NVS.setInt("value", static_cast<int32_t>(sliderValueValue));
+}
+
+/** Set the LED color from the saved settings in the flash memory. Updates the current color as well. */
+void setLedColorFromSettings() {
+  int sliderValueColor = NVS.getInt("color");
+  int sliderValueSaturation = NVS.getInt("saturation");
+  int sliderValueValue = NVS.getInt("value");
+
+  updateHsvColorFromSliderValues(sliderValueColor, sliderValueSaturation, sliderValueValue);
+  setLedsToCurrent();
+}
+
+/** Set the LED color to the current HSL color. */
 void setLedsToCurrent() {
   color = ESP_Color::Color::FromHsv(hsvColor);
   setLedsToColor(color);
