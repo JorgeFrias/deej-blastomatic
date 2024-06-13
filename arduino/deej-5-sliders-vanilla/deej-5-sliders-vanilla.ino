@@ -53,7 +53,7 @@ void setup() {
   }
 
   NVS.begin();                    // Initialize NVS - Non-volatile storage
-  setLedColorFromSettings();      // Set the LED color from the saved settings in flash
+  setLedColorFromSettings(true);  // Set the LED color from the saved settings in flash
 
   Serial.begin(9600);
 }
@@ -179,9 +179,16 @@ void updateSettingsLoop() {
 
 /** Update the current color from the slider values. */
 void updateHsvColorFromSliderValues(int sliderValueColor, int sliderValueSaturation, int sliderValueValue) {
+  hsvColor = colorFromSliderValues(sliderValueColor, sliderValueSaturation, sliderValueValue);
+}
+
+/** Create a HSV color from the slider values. */
+ESP_Color::HSVf colorFromSliderValues(int sliderValueColor, int sliderValueSaturation, int sliderValueValue) {
+  ESP_Color::HSVf hsvColor;
   hsvColor.H = map(sliderValueColor, 0, 1023, 0, 1000) / 1000.0f;
   hsvColor.S = map(sliderValueSaturation, 0, 1023, 0, 1000) / 1000.0f;
   hsvColor.V = map(sliderValueValue, 0, 1023, 0, 1000) / 1000.0f;
+  return hsvColor;
 }
 
 /** Save the current color settings to the flash memory. */
@@ -192,13 +199,24 @@ void saveCurrentValuesToFlash(int sliderValueColor, int sliderValueSaturation, i
 }
 
 /** Set the LED color from the saved settings in the flash memory. Updates the current color as well. */
-void setLedColorFromSettings() {
+void setLedColorFromSettings(bool fade) {
   int sliderValueColor = NVS.getInt("color");
   int sliderValueSaturation = NVS.getInt("saturation");
   int sliderValueValue = NVS.getInt("value");
 
-  updateHsvColorFromSliderValues(sliderValueColor, sliderValueSaturation, sliderValueValue);
-  setLedsToCurrent();
+  ESP_Color::HSVf hsvColorToSet = colorFromSliderValues(sliderValueColor, sliderValueSaturation, sliderValueValue);
+
+  if (fade) {
+    ESP_Color::Color color = ESP_Color::Color::FromHsv(hsvColorToSet);
+    hsvColor.H = hsvColorToSet.H;   // Set the Hue and Saturation, and fade to the Value to prevent weird transitions
+    hsvColor.S = hsvColorToSet.S;
+    hsvColor.V = 0.0f;
+    
+    setLedsToCurrent();             // Set the color to the black with correct Hue and Saturation
+    setFadeLedsToColor(color, 10);  // Fade to the final color
+  }
+  hsvColor = hsvColorToSet;         // Fading done (or no needed), update the color
+  setLedsToCurrent();               // Set the LED color to the current color, if fading was done, it will be the same color
 }
 
 /** Set the LED color to the current HSL color. */
